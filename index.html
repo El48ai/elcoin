@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ElCoin — Blockchain</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#04050a;
+  --surface:#080c14;
+  --panel:#0c1220;
+  --card:#101828;
+  --border:#1a2a40;
+  --gold:#f0a500;
+  --gold2:#ffd166;
+  --cyan:#00d4ff;
+  --green:#00ff9d;
+  --red:#ff4060;
+  --text:#d0e0f0;
+  --muted:#4a6080;
+  --mono:'Share Tech Mono',monospace;
+  --head:'Orbitron',sans-serif;
+  --body:'Exo 2',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--body);display:flex;flex-direction:column;}
+
+/* SCANLINE OVERLAY */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.03) 0px,rgba(0,0,0,.03) 1px,transparent 1px,transparent 2px);pointer-events:none;z-index:9999;}
+
+/* HEADER */
+header{flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:58px;display:flex;align-items:center;gap:20px;position:relative;overflow:hidden;}
+header::before{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+.logo-mark{width:36px;height:36px;background:linear-gradient(135deg,var(--gold),#c07800);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--head);font-weight:900;font-size:16px;color:#000;flex-shrink:0;box-shadow:0 0 20px rgba(240,165,0,.4);}
+.logo-text{font-family:var(--head);font-weight:700;font-size:18px;letter-spacing:3px;color:var(--gold);text-shadow:0 0 20px rgba(240,165,0,.5);}
+.logo-sub{font-size:9px;color:var(--muted);letter-spacing:2px;font-family:var(--mono);}
+.header-stats{display:flex;gap:24px;margin-left:auto;}
+.hstat{text-align:right;}
+.hstat-val{font-family:var(--mono);font-size:13px;color:var(--gold2);}
+.hstat-lbl{font-size:9px;color:var(--muted);letter-spacing:1px;}
+.live-dot{width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block;animation:blink 1.2s ease infinite;margin-right:6px;box-shadow:0 0 8px var(--green);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.nav-tabs{display:flex;gap:2px;margin-left:32px;}
+.ntab{padding:6px 16px;font-size:11px;font-family:var(--head);letter-spacing:1px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;}
+.ntab:hover{color:var(--text);}
+.ntab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* LAYOUT */
+.app{flex:1;display:flex;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);}
+.sb-section{padding:16px;}
+.sb-title{font-family:var(--head);font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;}
+.wallet-card{background:linear-gradient(135deg,#0d1f35,#061220);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;position:relative;overflow:hidden;}
+.wallet-card::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:radial-gradient(circle,rgba(240,165,0,.15),transparent);border-radius:50%;}
+.wallet-addr{font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:6px;word-break:break-all;line-height:1.5;}
+.wallet-bal{font-family:var(--head);font-size:22px;font-weight:700;color:var(--gold);text-shadow:0 0 15px rgba(240,165,0,.4);}
+.wallet-bal span{font-size:11px;color:var(--muted);margin-left:4px;font-family:var(--body);}
+.wallet-change{font-size:10px;color:var(--green);margin-top:4px;}
+
+.btn{padding:8px 14px;border-radius:6px;border:none;cursor:pointer;font-family:var(--head);font-size:10px;letter-spacing:1px;transition:.2s;}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#c07800);color:#000;font-weight:700;}
+.btn-gold:hover{box-shadow:0 0 20px rgba(240,165,0,.5);transform:translateY(-1px);}
+.btn-outline{background:transparent;color:var(--gold);border:1px solid var(--gold);letter-spacing:1px;}
+.btn-outline:hover{background:rgba(240,165,0,.1);}
+.btn-cyan{background:linear-gradient(135deg,var(--cyan),#007099);color:#000;font-weight:700;}
+.btn-cyan:hover{box-shadow:0 0 20px rgba(0,212,255,.4);transform:translateY(-1px);}
+.btn-full{width:100%;margin-bottom:6px;}
+
+/* SEND FORM */
+.form-field{margin-bottom:10px;}
+.form-field label{font-size:10px;color:var(--muted);display:block;margin-bottom:4px;letter-spacing:1px;}
+.form-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:11px;font-family:var(--mono);outline:none;transition:.2s;}
+.form-input:focus{border-color:var(--gold);box-shadow:0 0 10px rgba(240,165,0,.1);}
+
+/* MEMPOOL */
+.mempool-item{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:10px;}
+.mempool-item .mi-from{font-family:var(--mono);color:var(--muted);font-size:9px;}
+.mempool-item .mi-amount{color:var(--gold);font-family:var(--head);font-size:12px;float:right;}
+.mempool-badge{background:rgba(255,64,96,.15);color:var(--red);font-size:8px;padding:2px 6px;border-radius:3px;font-family:var(--mono);}
+
+/* MAIN */
+.main-area{flex:1;overflow-y:auto;padding:20px;}
+.main-area::-webkit-scrollbar{width:4px;}
+.main-area::-webkit-scrollbar-thumb{background:var(--border);}
+
+/* STATS ROW */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden;}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent-color,var(--gold));}
+.stat-val{font-family:var(--head);font-size:20px;font-weight:700;color:var(--accent-color,var(--gold));margin-bottom:4px;text-shadow:0 0 15px rgba(240,165,0,.3);}
+.stat-lbl{font-size:10px;color:var(--muted);letter-spacing:1px;}
+.stat-sub{font-size:9px;color:var(--green);margin-top:2px;}
+
+/* BLOCKCHAIN EXPLORER */
+.section-title{font-family:var(--head);font-size:12px;letter-spacing:2px;color:var(--gold);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* BLOCK CARD */
+.block-list{display:flex;flex-direction:column;gap:10px;}
+.block-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:.2s;cursor:pointer;}
+.block-card:hover{border-color:var(--gold);box-shadow:0 0 20px rgba(240,165,0,.08);}
+.block-card.genesis .bc-header{background:linear-gradient(135deg,rgba(240,165,0,.15),rgba(240,165,0,.05));}
+.block-card.mining .bc-header{animation:mineAnim 0.5s ease infinite alternate;}
+@keyframes mineAnim{from{background:rgba(0,212,255,.05)}to{background:rgba(0,212,255,.12)}}
+.bc-header{padding:12px 16px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);}
+.block-num{font-family:var(--head);font-size:11px;color:var(--muted);}
+.block-num strong{color:var(--gold);font-size:16px;display:block;}
+.block-hash{font-family:var(--mono);font-size:10px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.block-hash .hash-val{color:var(--cyan);font-size:10px;}
+.block-meta{display:flex;gap:16px;font-size:10px;color:var(--muted);}
+.block-meta span{color:var(--text);}
+.bc-body{padding:10px 16px;}
+.tx-list{display:flex;flex-direction:column;gap:6px;}
+.tx-row{display:flex;align-items:center;gap:8px;font-size:10px;padding:5px 8px;background:var(--card);border-radius:5px;border:1px solid var(--border);}
+.tx-hash{font-family:var(--mono);color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;}
+.tx-from,.tx-to{font-family:var(--mono);font-size:9px;color:var(--muted);width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tx-arrow{color:var(--gold);font-size:10px;}
+.tx-amount{font-family:var(--head);font-size:11px;color:var(--gold2);white-space:nowrap;}
+.tx-fee{color:var(--muted);font-size:9px;}
+.badge{font-size:8px;padding:2px 6px;border-radius:3px;font-family:var(--mono);font-weight:600;}
+.badge-confirmed{background:rgba(0,255,157,.12);color:var(--green);}
+.badge-coinbase{background:rgba(240,165,0,.15);color:var(--gold);}
+.badge-pending{background:rgba(255,64,96,.12);color:var(--red);}
+.no-tx{font-size:10px;color:var(--muted);text-align:center;padding:8px;}
+
+/* MINING PANEL */
+.mine-panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px;}
+.mine-status{font-family:var(--mono);font-size:11px;color:var(--cyan);margin-bottom:10px;min-height:20px;}
+.mine-progress{width:100%;height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:10px;}
+.mine-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--gold));width:0%;transition:.2s;border-radius:3px;}
+.mine-info{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:10px;}
+.mine-info div{background:var(--card);border-radius:6px;padding:8px 10px;}
+.mine-info .mi-val{font-family:var(--mono);color:var(--cyan);font-size:12px;}
+.mine-info .mi-lbl{color:var(--muted);font-size:9px;margin-top:2px;}
+
+/* HASH DISPLAY */
+.hash-display{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:var(--mono);font-size:10px;color:var(--green);word-break:break-all;line-height:1.7;margin-top:8px;}
+.hash-display .z{color:var(--gold);}
+
+/* CHART */
+.price-chart{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px;}
+.chart-canvas{width:100%;height:120px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:10px 18px;font-size:11px;color:var(--text);z-index:1000;opacity:0;transition:.3s;pointer-events:none;font-family:var(--mono);}
+.toast.show{opacity:1;}
+
+/* TABS CONTENT */
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* RESPONSIVE scrollbar for sidebar */
+.sidebar{overflow-y:auto;}
+
+/* GLOW LINE anim */
+@keyframes glowPulse{0%,100%{opacity:.3}50%{opacity:1}}
+.glow-line{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:glowPulse 3s ease infinite;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-mark">EL</div>
+  <div>
+    <div class="logo-text">ELCOIN</div>
+    <div class="logo-sub">DECENTRALIZED BLOCKCHAIN NETWORK</div>
+  </div>
+  <div class="nav-tabs">
+    <div class="ntab active" onclick="switchView('explorer')">EXPLORER</div>
+    <div class="ntab" onclick="switchView('wallet')">WALLET</div>
+    <div class="ntab" onclick="switchView('mine')">MINE</div>
+    <div class="ntab" onclick="switchView('network')">NETWORK</div>
+  </div>
+  <div class="header-stats">
+    <div class="hstat">
+      <div class="hstat-val"><span class="live-dot"></span>LIVE</div>
+      <div class="hstat-lbl">NETWORK</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val" id="hPrice">$0.00842</div>
+      <div class="hstat-lbl">ELC/USD</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val" id="hBlocks">0</div>
+      <div class="hstat-lbl">BLOCKS</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val" id="hDiff">4</div>
+      <div class="hstat-lbl">DIFFICULTY</div>
+    </div>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <!-- MY WALLET -->
+    <div class="sb-section">
+      <div class="sb-title">MY WALLET</div>
+      <div class="wallet-card">
+        <div class="wallet-addr" id="myAddr">Generating wallet...</div>
+        <div class="wallet-bal"><span id="myBal">0</span> <span>ELC</span></div>
+        <div class="wallet-change">≈ $<span id="myBalUSD">0.00</span> USD</div>
+      </div>
+      <button class="btn btn-gold btn-full" onclick="copyAddr()">COPY ADDRESS</button>
+      <button class="btn btn-outline btn-full" onclick="newWallet()">NEW WALLET</button>
+    </div>
+
+    <div class="glow-line"></div>
+
+    <!-- SEND -->
+    <div class="sb-section">
+      <div class="sb-title">SEND ELC</div>
+      <div class="form-field">
+        <label>RECIPIENT ADDRESS</label>
+        <input class="form-input" id="sendTo" placeholder="ELC1x3a9f..." style="font-size:9px;"/>
+      </div>
+      <div class="form-field">
+        <label>AMOUNT (ELC)</label>
+        <input class="form-input" id="sendAmt" type="number" placeholder="0.0" min="0.001" step="0.001"/>
+      </div>
+      <div class="form-field">
+        <label>FEE (ELC)</label>
+        <input class="form-input" id="sendFee" type="number" placeholder="0.001" value="0.001" step="0.0001"/>
+      </div>
+      <button class="btn btn-cyan btn-full" onclick="sendTransaction()">BROADCAST TX</button>
+    </div>
+
+    <div class="glow-line"></div>
+
+    <!-- MEMPOOL -->
+    <div class="sb-section">
+      <div class="sb-title">MEMPOOL (<span id="mempoolCount">0</span>)</div>
+      <div id="mempoolList"></div>
+      <div id="mempoolEmpty" style="font-size:10px;color:var(--muted);text-align:center;padding:8px;">No pending transactions</div>
+    </div>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+    <!-- EXPLORER TAB -->
+    <div class="tab-content active" id="view-explorer">
+      <!-- STATS -->
+      <div class="stats-grid">
+        <div class="stat-card" style="--accent-color:var(--gold)">
+          <div class="stat-val" id="statBlocks">0</div>
+          <div class="stat-lbl">TOTAL BLOCKS</div>
+          <div class="stat-sub">+1 per mine</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--cyan)">
+          <div class="stat-val" id="statTx">0</div>
+          <div class="stat-lbl">TRANSACTIONS</div>
+          <div class="stat-sub">All time</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--green)">
+          <div class="stat-val" id="statSupply">0</div>
+          <div class="stat-lbl">ELC SUPPLY</div>
+          <div class="stat-sub">Max 21,000,000</div>
+        </div>
+        <div class="stat-card" style="--accent-color:#ff9f43">
+          <div class="stat-val" id="statReward">50</div>
+          <div class="stat-lbl">BLOCK REWARD</div>
+          <div class="stat-sub">ELC per block</div>
+        </div>
+      </div>
+
+      <!-- PRICE CHART -->
+      <div class="price-chart">
+        <div class="section-title">ELC PRICE HISTORY</div>
+        <canvas class="chart-canvas" id="priceChart"></canvas>
+      </div>
+
+      <!-- BLOCKCHAIN -->
+      <div class="section-title">BLOCKCHAIN LEDGER</div>
+      <div class="block-list" id="blockList"></div>
+    </div>
+
+    <!-- MINE TAB -->
+    <div class="tab-content" id="view-mine">
+      <div class="stats-grid">
+        <div class="stat-card" style="--accent-color:var(--cyan)">
+          <div class="stat-val" id="mineHashrate">0 H/s</div>
+          <div class="stat-lbl">HASHRATE</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--gold)">
+          <div class="stat-val" id="minedTotal">0</div>
+          <div class="stat-lbl">TOTAL MINED</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--green)">
+          <div class="stat-val" id="mineReward">50 ELC</div>
+          <div class="stat-lbl">NEXT REWARD</div>
+        </div>
+        <div class="stat-card" style="--accent-color:#ff9f43">
+          <div class="stat-val" id="mineDiff">4</div>
+          <div class="stat-lbl">DIFFICULTY</div>
+        </div>
+      </div>
+      <div class="mine-panel">
+        <div class="section-title">PROOF OF WORK MINING</div>
+        <div class="mine-status" id="mineStatus">Ready to mine. Click START to begin.</div>
+        <div class="mine-progress"><div class="mine-fill" id="mineFill"></div></div>
+        <div class="mine-info">
+          <div><div class="mi-val" id="mineNonce">0</div><div class="mi-lbl">NONCE</div></div>
+          <div><div class="mi-val" id="mineAttempts">0</div><div class="mi-lbl">ATTEMPTS</div></div>
+          <div><div class="mi-val" id="mineTime">0ms</div><div class="mi-lbl">TIME</div></div>
+        </div>
+        <div class="hash-display" id="currentHashDisplay">Waiting to start...</div>
+        <div style="display:flex;gap:10px;margin-top:14px;">
+          <button class="btn btn-gold" id="mineBtn" onclick="startMining()" style="flex:1">⚡ MINE BLOCK</button>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:9px;color:var(--muted);">DIFFICULTY</label>
+            <select id="diffSelect" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:5px;font-size:11px;" onchange="setDifficulty(this.value)">
+              <option value="2">Easy (2)</option>
+              <option value="3">Medium (3)</option>
+              <option value="4" selected>Hard (4)</option>
+              <option value="5">Expert (5)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WALLET TAB -->
+    <div class="tab-content" id="view-wallet">
+      <div class="section-title">WALLET DETAILS</div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">PUBLIC ADDRESS</div>
+        <div id="walletAddr" style="font-family:var(--mono);font-size:12px;color:var(--cyan);word-break:break-all;margin-bottom:16px;"></div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">PRIVATE KEY (KEEP SECRET)</div>
+        <div id="walletPriv" style="font-family:var(--mono);font-size:11px;color:var(--red);word-break:break-all;filter:blur(4px);cursor:pointer;" onclick="this.style.filter='none'" title="Click to reveal"></div>
+        <div style="font-size:9px;color:var(--muted);margin-top:6px;">⚠️ Click to reveal — never share your private key</div>
+      </div>
+      <div class="section-title">TRANSACTION HISTORY</div>
+      <div id="txHistory" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <!-- NETWORK TAB -->
+    <div class="tab-content" id="view-network">
+      <div class="section-title">NETWORK STATUS</div>
+      <div class="stats-grid">
+        <div class="stat-card" style="--accent-color:var(--green)"><div class="stat-val">1</div><div class="stat-lbl">NODES</div></div>
+        <div class="stat-card" style="--accent-color:var(--cyan)"><div class="stat-val" id="netTps">0</div><div class="stat-lbl">TX/SEC</div></div>
+        <div class="stat-card" style="--accent-color:var(--gold)"><div class="stat-val" id="netUptime">100%</div><div class="stat-lbl">UPTIME</div></div>
+        <div class="stat-card" style="--accent-color:#ff9f43"><div class="stat-val">SHA256</div><div class="stat-lbl">ALGORITHM</div></div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-top:4px;">
+        <div class="section-title">CHAIN INTEGRITY</div>
+        <div id="chainValidity" style="font-family:var(--mono);font-size:12px;color:var(--green);">✓ BLOCKCHAIN VALID</div>
+        <div style="margin-top:14px;font-size:10px;color:var(--muted);">
+          <div style="margin-bottom:8px;">ElCoin uses SHA-256 Proof of Work — the same algorithm as Bitcoin.</div>
+          <div style="margin-bottom:8px;">Each block references the previous block's hash, forming an immutable chain.</div>
+          <div>Difficulty auto-adjusts every 10 blocks to target 1 block per 10 minutes.</div>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="section-title">GENESIS BLOCK</div>
+          <div id="genesisInfo" style="font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.8;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  ELCOIN BLOCKCHAIN ENGINE
+// ═══════════════════════════════════════════
+
+// SHA-256 using Web Crypto API (async) or fallback pure JS
+async function sha256(message) {
+  if (window.crypto && window.crypto.subtle) {
+    const msgBuf = new TextEncoder().encode(message);
+    const hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
+    const hashArr = Array.from(new Uint8Array(hashBuf));
+    return hashArr.map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+  return sha256Fallback(message);
+}
+
+// Sync fallback SHA-256
+function sha256Fallback(str) {
+  function rightRotate(val, amount) { return (val >>> amount) | (val << (32 - amount)); }
+  const mathPow = Math.pow;
+  const maxWord = mathPow(2, 32);
+  const lengthProperty = 'length';
+  let i, j;
+  const result = '';
+  const words = [];
+  const asciiBitLength = str[lengthProperty] * 8;
+  let hash = [];
+  const k = [];
+  let primeCounter = k[lengthProperty];
+  const isComposite = {};
+  for (let candidate = 2; primeCounter < 64; candidate++) {
+    if (!isComposite[candidate]) {
+      for (i = 0; i < 313; i += candidate) isComposite[i] = candidate;
+      hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
+      k[primeCounter++] = (mathPow(candidate, 1/3) * maxWord) | 0;
+    }
+  }
+  str += '\x80';
+  while (str[lengthProperty] % 64 - 56) str += '\x00';
+  for (i = 0; i < str[lengthProperty]; i++) {
+    j = str.charCodeAt(i);
+    if (j >> 8) return '';
+    words[i >> 2] |= j << ((3 - i) % 4) * 8;
+  }
+  words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
+  words[words[lengthProperty]] = (asciiBitLength);
+  for (j = 0; j < words[lengthProperty];) {
+    const w = words.slice(j, j += 16);
+    const oldHash = hash.slice(0);
+    for (i = 0; i < 64; i++) {
+      const i2 = i + j - 16;
+      const w15 = w[i - 15], w2 = w[i - 2];
+      const a = oldHash[0], e = oldHash[4];
+      const temp1 = oldHash[7] + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + ((e & oldHash[5]) ^ ((~e) & oldHash[6])) + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))) | 0);
+      const temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a & oldHash[1]) ^ (a & oldHash[2]) ^ (oldHash[1] & oldHash[2]));
+      hash = [(temp1 + temp2) | 0].concat(hash);
+      hash[4] = (hash[4] + temp1) | 0;
+      hash.length = 8;
+    }
+    oldHash.forEach((h, i) => { hash[i] = (hash[i] + h) | 0; });
+  }
+  return hash.map(n => ('00000000' + (n >>> 0).toString(16)).slice(-8)).join('');
+}
+
+// Random hex string
+function randomHex(len) {
+  let s = '';
+  for (let i=0;i<len;i++) s += Math.floor(Math.random()*16).toString(16);
+  return s;
+}
+
+// Generate wallet address
+function generateAddress() {
+  const key = randomHex(64);
+  const addr = 'ELC' + randomHex(32).toUpperCase();
+  return { address: addr, privateKey: key };
+}
+
+// ═══════ BLOCKCHAIN DATA ═══════
+let difficulty = 4;
+let blockchain = [];
+let mempool = [];
+let myWallet = generateAddress();
+let totalMined = 0;
+let priceHistory = [0.001];
+let isMining = false;
+let hashCount = 0;
+let hashRateTimer;
+
+// ═══════ BLOCK STRUCTURE ═══════
+async function createBlock(index, transactions, previousHash, miner) {
+  const timestamp = Date.now();
+  let nonce = 0;
+  let hash = '';
+  const target = '0'.repeat(difficulty);
+  const startTime = Date.now();
+  let attempts = 0;
+
+  // Mining loop (with async to not freeze UI)
+  while (true) {
+    const data = JSON.stringify({ index, timestamp, transactions, previousHash, nonce });
+    hash = await sha256(data);
+    attempts++;
+    hashCount++;
+
+    document.getElementById('mineNonce').textContent = nonce.toLocaleString();
+    document.getElementById('mineAttempts').textContent = attempts.toLocaleString();
+    document.getElementById('mineTime').textContent = (Date.now()-startTime)+'ms';
+
+    const pct = Math.min(99, (attempts % 1000) / 10);
+    document.getElementById('mineFill').style.width = pct+'%';
+
+    // Colorize hash zeros
+    const colored = hash.split('').map((c,i) => {
+      if (i < difficulty && c === '0') return `<span class="z">${c}</span>`;
+      return c;
+    }).join('');
+    document.getElementById('currentHashDisplay').innerHTML = colored;
+    document.getElementById('mineStatus').textContent = `Mining... nonce=${nonce} | ${attempts} attempts | hash: ${hash.substring(0,16)}...`;
+
+    if (hash.startsWith(target)) break;
+    nonce++;
+
+    // Yield to UI every 200 attempts
+    if (attempts % 200 === 0) {
+      await new Promise(r => setTimeout(r, 0));
+      if (!isMining) throw new Error('Mining stopped');
+    }
+  }
+
+  return { index, timestamp, transactions, previousHash, nonce, hash, miner, difficulty };
+}
+
+// Genesis block
+async function createGenesis() {
+  const genesisTx = [{
+    id: randomHex(16),
+    from: 'COINBASE',
+    to: myWallet.address,
+    amount: 50,
+    fee: 0,
+    timestamp: Date.now(),
+    type: 'coinbase'
+  }];
+
+  const block = {
+    index: 0,
+    timestamp: Date.now(),
+    transactions: genesisTx,
+    previousHash: '0'.repeat(64),
+    nonce: 0,
+    miner: myWallet.address,
+    difficulty: 0
+  };
+
+  const data = JSON.stringify({ index:0, timestamp:block.timestamp, transactions:genesisTx, previousHash:'0'.repeat(64), nonce:0 });
+  block.hash = await sha256(data);
+
+  blockchain.push(block);
+  totalMined += 50;
+  updateUI();
+  renderBlockchain();
+  renderGenesisInfo();
+}
+
+// ═══════ MINING ═══════
+let miningTask = null;
+
+async function startMining() {
+  if (isMining) return;
+  isMining = true;
+  document.getElementById('mineBtn').disabled = true;
+  document.getElementById('mineBtn').textContent = '⏳ MINING...';
+
+  // Start hashrate counter
+  hashCount = 0;
+  hashRateTimer = setInterval(() => {
+    document.getElementById('mineHashrate').textContent = hashCount.toLocaleString() + ' H/s';
+    hashCount = 0;
+  }, 1000);
+
+  try {
+    const prevBlock = blockchain[blockchain.length - 1];
+    const index = blockchain.length;
+
+    // Collect mempool TXs (up to 5)
+    const txsToMine = mempool.splice(0, 5);
+
+    // Coinbase reward
+    const reward = Math.floor(50 / Math.pow(2, Math.floor(blockchain.length / 10)));
+    const coinbaseTx = {
+      id: randomHex(16),
+      from: 'COINBASE',
+      to: myWallet.address,
+      amount: reward,
+      fee: 0,
+      timestamp: Date.now(),
+      type: 'coinbase'
+    };
+
+    const allTxs = [coinbaseTx, ...txsToMine];
+    const block = await createBlock(index, allTxs, prevBlock.hash, myWallet.address);
+
+    blockchain.push(block);
+    totalMined += reward;
+
+    // Update balance
+    let myBal = parseFloat(document.getElementById('myBal').textContent) || 0;
+    myBal += reward;
+    // Add fees from TXs
+    txsToMine.forEach(tx => { if (tx.fee) myBal += tx.fee; });
+    document.getElementById('myBal').textContent = myBal.toFixed(4);
+    document.getElementById('myBalUSD').textContent = (myBal * 0.00842).toFixed(4);
+
+    // Price fluctuation
+    const newPrice = priceHistory[priceHistory.length-1] * (0.98 + Math.random()*0.06);
+    priceHistory.push(parseFloat(newPrice.toFixed(6)));
+    if (priceHistory.length > 30) priceHistory.shift();
+    document.getElementById('hPrice').textContent = '$'+newPrice.toFixed(5);
+
+    document.getElementById('mineFill').style.width = '100%';
+    document.getElementById('mineStatus').textContent = `✅ Block #${index} mined! Hash: ${block.hash.substring(0,20)}...`;
+    document.getElementById('minedTotal').textContent = totalMined;
+    document.getElementById('mineReward').textContent = Math.floor(50 / Math.pow(2, Math.floor(blockchain.length / 10))) + ' ELC';
+
+    updateUI();
+    renderBlockchain();
+    renderPriceChart();
+    updateTxHistory();
+    showToast(`⛏️ Block #${index} mined! +${reward} ELC`);
+
+  } catch(e) {
+    document.getElementById('mineStatus').textContent = 'Mining cancelled.';
+  }
+
+  clearInterval(hashRateTimer);
+  isMining = false;
+  document.getElementById('mineBtn').disabled = false;
+  document.getElementById('mineBtn').textContent = '⚡ MINE BLOCK';
+  document.getElementById('mineFill').style.width = '0%';
+}
+
+function setDifficulty(v) {
+  difficulty = parseInt(v);
+  document.getElementById('hDiff').textContent = difficulty;
+  document.getElementById('mineDiff').textContent = difficulty;
+  showToast('Difficulty set to '+difficulty);
+}
+
+// ═══════ TRANSACTIONS ═══════
+function sendTransaction() {
+  const to = document.getElementById('sendTo').value.trim();
+  const amount = parseFloat(document.getElementById('sendAmt').value);
+  const fee = parseFloat(document.getElementById('sendFee').value) || 0.001;
+
+  if (!to || to.length < 10) { showToast('❌ Invalid recipient address'); return; }
+  if (!amount || amount <= 0) { showToast('❌ Invalid amount'); return; }
+
+  const myBal = parseFloat(document.getElementById('myBal').textContent) || 0;
+  if (myBal < amount + fee) { showToast('❌ Insufficient balance'); return; }
+
+  const tx = {
+    id: randomHex(32),
+    from: myWallet.address,
+    to: to,
+    amount: parseFloat(amount.toFixed(6)),
+    fee: parseFloat(fee.toFixed(6)),
+    timestamp: Date.now(),
+    type: 'transfer'
+  };
+
+  mempool.push(tx);
+
+  // Deduct from balance immediately
+  const newBal = myBal - amount - fee;
+  document.getElementById('myBal').textContent = newBal.toFixed(4);
+  document.getElementById('myBalUSD').textContent = (newBal * 0.00842).toFixed(4);
+
+  document.getElementById('sendTo').value = '';
+  document.getElementById('sendAmt').value = '';
+
+  renderMempool();
+  showToast(`📤 TX broadcast! ${amount} ELC → ${to.substring(0,12)}...`);
+}
+
+// ═══════ RENDER FUNCTIONS ═══════
+function updateUI() {
+  const totalTxs = blockchain.reduce((s,b) => s+b.transactions.length, 0);
+  const supply = blockchain.reduce((s,b) => s + b.transactions.filter(t=>t.type==='coinbase').reduce((a,t)=>a+t.amount,0), 0);
+
+  document.getElementById('hBlocks').textContent = blockchain.length;
+  document.getElementById('statBlocks').textContent = blockchain.length;
+  document.getElementById('statTx').textContent = totalTxs;
+  document.getElementById('statSupply').textContent = supply.toFixed(0)+' ELC';
+  document.getElementById('statReward').textContent = Math.floor(50/Math.pow(2,Math.floor(blockchain.length/10)))+' ELC';
+  document.getElementById('netTps').textContent = (totalTxs / Math.max(1, blockchain.length)).toFixed(1);
+
+  // Validate chain
+  validateChain();
+}
+
+function renderBlockchain() {
+  const list = document.getElementById('blockList');
+  list.innerHTML = '';
+  [...blockchain].reverse().forEach(block => {
+    const div = document.createElement('div');
+    div.className = 'block-card' + (block.index===0?' genesis':'');
+    const time = new Date(block.timestamp).toLocaleTimeString();
+    const date = new Date(block.timestamp).toLocaleDateString();
+    const txCount = block.transactions.length;
+
+    div.innerHTML = `
+      <div class="bc-header">
+        <div class="block-num">BLOCK<strong>#${block.index}</strong></div>
+        <div class="block-hash">
+          <div style="font-size:9px;color:var(--muted)">HASH</div>
+          <div class="hash-val">${block.hash}</div>
+        </div>
+        <div class="block-meta">
+          <div>${date}<br><span>${time}</span></div>
+          <div>TXs<br><span>${txCount}</span></div>
+          <div>Nonce<br><span>${block.nonce.toLocaleString()}</span></div>
+          <div>Diff<br><span>${block.difficulty}</span></div>
+        </div>
+      </div>
+      <div class="bc-body">
+        <div style="font-size:9px;color:var(--muted);margin-bottom:6px;">PREV: <span style="color:var(--muted)">${block.previousHash.substring(0,32)}...</span></div>
+        <div class="tx-list">
+          ${block.transactions.map(tx => `
+            <div class="tx-row">
+              <div class="tx-hash">${tx.id}</div>
+              <div class="tx-from">${tx.from === 'COINBASE' ? 'COINBASE' : tx.from.substring(0,10)+'...'}</div>
+              <div class="tx-arrow">→</div>
+              <div class="tx-to">${tx.to.substring(0,10)}...</div>
+              <div class="tx-amount">${tx.amount} ELC</div>
+              <div class="tx-fee">${tx.fee?'+'+tx.fee+' fee':''}</div>
+              <span class="badge ${tx.type==='coinbase'?'badge-coinbase':'badge-confirmed'}">${tx.type==='coinbase'?'COINBASE':'CONFIRMED'}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function renderMempool() {
+  const list = document.getElementById('mempoolList');
+  const empty = document.getElementById('mempoolEmpty');
+  document.getElementById('mempoolCount').textContent = mempool.length;
+  list.innerHTML = '';
+  if (mempool.length === 0) { empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  mempool.forEach(tx => {
+    const div = document.createElement('div');
+    div.className = 'mempool-item';
+    div.innerHTML = `
+      <span class="mempool-badge">PENDING</span>
+      <span class="mi-amount">${tx.amount} ELC</span>
+      <div class="mi-from">From: ${tx.from.substring(0,16)}...</div>
+      <div class="mi-from">To: ${tx.to.substring(0,16)}...</div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function renderGenesisInfo() {
+  const g = blockchain[0];
+  if (!g) return;
+  document.getElementById('genesisInfo').innerHTML = `
+HASH:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${g.hash}<br>
+TIMESTAMP: ${new Date(g.timestamp).toLocaleString()}<br>
+NONCE:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${g.nonce}<br>
+DIFFICULTY: ${g.difficulty}<br>
+PREV HASH: ${'0'.repeat(64)}<br>
+MINER:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${g.miner}<br>
+REWARD:&nbsp;&nbsp;&nbsp;&nbsp; 50 ELC
+  `;
+}
+
+function renderPriceChart() {
+  const canvas = document.getElementById('priceChart');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 600;
+  canvas.height = 120;
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  if (priceHistory.length < 2) return;
+  const min = Math.min(...priceHistory);
+  const max = Math.max(...priceHistory) || min+1;
+  const range = max - min || 1;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(26,42,64,0.8)';
+  ctx.lineWidth = 1;
+  for (let i=0;i<4;i++) {
+    const y = (h-20)*(i/3)+10;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+  }
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'rgba(240,165,0,0.3)');
+  grad.addColorStop(1,'rgba(240,165,0,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  priceHistory.forEach((p,i) => {
+    const x = (i/(priceHistory.length-1))*w;
+    const y = h-10 - ((p-min)/range)*(h-20);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.fill();
+
+  // Line
+  ctx.strokeStyle = '#f0a500';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#f0a500';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  priceHistory.forEach((p,i) => {
+    const x = (i/(priceHistory.length-1))*w;
+    const y = h-10 - ((p-min)/range)*(h-20);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Last price label
+  const lastP = priceHistory[priceHistory.length-1];
+  const lastX = w-4;
+  const lastY = h-10 - ((lastP-min)/range)*(h-20);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#f0a500';
+  ctx.font = '10px Share Tech Mono';
+  ctx.fillText('$'+lastP.toFixed(6), Math.max(0,lastX-80), Math.max(12,lastY-6));
+}
+
+function updateTxHistory() {
+  const container = document.getElementById('txHistory');
+  const allTxs = [];
+  blockchain.forEach(block => {
+    block.transactions.forEach(tx => allTxs.push({...tx, blockIndex: block.index}));
+  });
+  allTxs.reverse();
+
+  if (allTxs.length === 0) {
+    container.innerHTML = '<div style="font-size:10px;color:var(--muted);text-align:center;padding:16px;">No transactions yet</div>';
+    return;
+  }
+
+  container.innerHTML = allTxs.map(tx => `
+    <div class="tx-row" style="background:var(--panel);border-radius:8px;padding:10px 14px;">
+      <div style="flex:1">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted)">TX: ${tx.id}</div>
+        <div style="font-size:10px;margin-top:3px;">${tx.from==='COINBASE'?'⛏️ Block Reward':'📤 Transfer'} — Block #${tx.blockIndex}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;">${new Date(tx.timestamp).toLocaleString()}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--head);font-size:14px;color:var(--gold)">+${tx.amount} ELC</div>
+        <span class="badge ${tx.type==='coinbase'?'badge-coinbase':'badge-confirmed'}">${tx.type==='coinbase'?'COINBASE':'CONFIRMED'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function validateChain() {
+  const el = document.getElementById('chainValidity');
+  if (!el) return;
+  let valid = true;
+  for (let i=1; i<blockchain.length; i++) {
+    if (blockchain[i].previousHash !== blockchain[i-1].hash) { valid=false; break; }
+  }
+  el.textContent = valid ? '✓ BLOCKCHAIN VALID — All '+blockchain.length+' blocks verified' : '✗ CHAIN INTEGRITY COMPROMISED';
+  el.style.color = valid ? 'var(--green)' : 'var(--red)';
+}
+
+// ═══════ WALLET ═══════
+function newWallet() {
+  myWallet = generateAddress();
+  document.getElementById('myAddr').textContent = myWallet.address;
+  document.getElementById('myBal').textContent = '0';
+  document.getElementById('myBalUSD').textContent = '0.00';
+  document.getElementById('walletAddr').textContent = myWallet.address;
+  document.getElementById('walletPriv').textContent = myWallet.privateKey;
+  document.getElementById('walletPriv').style.filter = 'blur(4px)';
+  showToast('🔑 New wallet generated!');
+}
+
+function copyAddr() {
+  navigator.clipboard?.writeText(myWallet.address).then(()=>showToast('📋 Address copied!')).catch(()=>showToast('📋 '+myWallet.address.substring(0,20)+'...'));
+}
+
+// ═══════ NAVIGATION ═══════
+function switchView(view) {
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  const tabs = ['explorer','wallet','mine','network'];
+  document.querySelectorAll('.ntab')[tabs.indexOf(view)].classList.add('active');
+  if (view==='mine') renderPriceChart();
+  if (view==='wallet') updateTxHistory();
+  if (view==='explorer') renderPriceChart();
+}
+
+// ═══════ TOAST ═══════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+// ═══════ PRICE TICKER ═══════
+setInterval(() => {
+  const last = priceHistory[priceHistory.length-1];
+  const next = last * (0.997 + Math.random()*0.006);
+  priceHistory.push(parseFloat(next.toFixed(6)));
+  if (priceHistory.length > 60) priceHistory.shift();
+  document.getElementById('hPrice').textContent = '$'+next.toFixed(5);
+  renderPriceChart();
+}, 3000);
+
+// ═══════ INIT ═══════
+(async () => {
+  document.getElementById('myAddr').textContent = myWallet.address;
+  document.getElementById('walletAddr').textContent = myWallet.address;
+  document.getElementById('walletPriv').textContent = myWallet.privateKey;
+
+  // Seed price history
+  let p = 0.00842;
+  for (let i=0;i<20;i++) {
+    p *= (0.98+Math.random()*0.04);
+    priceHistory.push(parseFloat(p.toFixed(6)));
+  }
+
+  await createGenesis();
+  document.getElementById('myBal').textContent = '50.0000';
+  document.getElementById('myBalUSD').textContent = (50 * 0.00842).toFixed(4);
+  renderPriceChart();
+  showToast('🌐 ElCoin network initialized! Genesis block created.');
+})();
+
+// Resize handler for chart
+window.addEventListener('resize', renderPriceChart);
+</script>
+</body>
+</html>
