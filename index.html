@@ -167,9 +167,36 @@ header::before{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;b
 /* SIM NOTICE */
 .sim-notice{background:rgba(255,64,96,.08);border:1px solid rgba(255,64,96,.4);border-radius:8px;padding:10px 12px;font-size:10px;color:var(--text);line-height:1.6;margin-bottom:16px;}
 .sim-notice b{color:var(--red);}
+
+/* LOCK SCREEN */
+#lockScreen{position:fixed;inset:0;z-index:10000;background:radial-gradient(circle at 50% 30%,#0a1020,#04050a);display:flex;align-items:center;justify-content:center;}
+#lockScreen::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.04) 0px,rgba(0,0,0,.04) 1px,transparent 1px,transparent 2px);pointer-events:none;}
+.lock-box{width:300px;max-width:90vw;text-align:center;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:28px 24px;position:relative;box-shadow:0 0 60px rgba(240,165,0,.08);}
+.lock-title{font-family:var(--head);font-size:15px;letter-spacing:2px;color:var(--gold);text-shadow:0 0 18px rgba(240,165,0,.4);margin-bottom:6px;}
+.lock-sub{font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:18px;}
+.lock-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-size:18px;font-family:var(--mono);text-align:center;letter-spacing:8px;outline:none;margin-bottom:10px;transition:.2s;}
+.lock-input:focus{border-color:var(--gold);box-shadow:0 0 12px rgba(240,165,0,.15);}
+.lock-err{font-size:10px;color:var(--red);min-height:14px;margin-bottom:4px;font-family:var(--mono);}
+.lock-note{font-size:9px;color:var(--muted);line-height:1.6;margin-top:14px;}
 </style>
 </head>
 <body>
+
+<!-- LOCK SCREEN -->
+<div id="lockScreen">
+  <div class="lock-box">
+    <div class="logo-mark" style="margin:0 auto 16px;">EL</div>
+    <div class="lock-title" id="lockTitle">UNLOCK WALLET</div>
+    <div class="lock-sub" id="lockSub">Enter your numeric PIN</div>
+    <input id="lockPin" class="lock-input" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="••••"/>
+    <input id="lockPin2" class="lock-input" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Confirm PIN" style="display:none;"/>
+    <div class="lock-err" id="lockErr"></div>
+    <button class="btn btn-gold btn-full" id="lockBtn" onclick="handleLockSubmit()">UNLOCK</button>
+    <div class="lock-note" id="lockNote">🔒 Your PIN encrypts your private key locally (AES-GCM). It is never sent anywhere. There is no recovery — if you forget it, you must reset the wallet.</div>
+    <div class="lock-note">Switching devices? <span onclick="triggerRestore()" style="color:var(--cyan);cursor:pointer;text-decoration:underline;">Restore from backup file</span></div>
+  </div>
+</div>
+<input type="file" id="restoreFile" accept="application/json,.json" style="display:none;" onchange="handleRestoreFile(this)"/>
 
 <!-- HEADER -->
 <header>
@@ -218,6 +245,10 @@ header::before{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;b
       <button class="btn btn-gold btn-full" onclick="copyAddr()">COPY ADDRESS</button>
       <button class="btn btn-outline btn-full" onclick="newWallet()">NEW WALLET</button>
       <button class="btn btn-danger btn-full" onclick="resetChain()">RESET BLOCKCHAIN</button>
+      <button class="btn btn-outline btn-full" onclick="changePin()">CHANGE PIN</button>
+      <button class="btn btn-outline btn-full" onclick="lockWallet()" style="color:var(--cyan);border-color:var(--cyan);">🔒 LOCK WALLET</button>
+      <button class="btn btn-outline btn-full" onclick="backupWallet()" style="color:var(--green);border-color:var(--green);">💾 BACKUP WALLET</button>
+      <button class="btn btn-outline btn-full" onclick="triggerRestore()" style="color:var(--green);border-color:var(--green);">↻ RESTORE WALLET</button>
     </div>
 
     <div class="glow-line"></div>
@@ -435,6 +466,26 @@ async function importPubHex(hex){
   return crypto.subtle.importKey('raw', hex2buf(hex), {name:'ECDSA',namedCurve:'P-256'}, false, ['verify']);
 }
 
+// ─── PIN-based encryption of the private key (PBKDF2 + AES-GCM) ───
+async function deriveAesKey(pin, salt){
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt, iterations:150000, hash:'SHA-256'},
+    base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+}
+async function encryptPriv(privJwk, pin){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveAesKey(pin, salt);
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, new TextEncoder().encode(JSON.stringify(privJwk)));
+  return { salt:buf2hex(salt), iv:buf2hex(iv), ct:buf2hex(ct) };
+}
+async function decryptPriv(enc, pin){
+  const key = await deriveAesKey(pin, new Uint8Array(hex2buf(enc.salt)));
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:new Uint8Array(hex2buf(enc.iv))}, key, hex2buf(enc.ct));
+  return JSON.parse(new TextDecoder().decode(pt)); // throws if PIN is wrong
+}
+
 // canonical form of the data that gets signed (order matters!)
 function txPayload(tx){
   return JSON.stringify({from:tx.from,to:tx.to,amount:tx.amount,fee:tx.fee,timestamp:tx.timestamp,nonce:tx.nonce});
@@ -461,7 +512,10 @@ async function verifyTx(tx){
 let difficulty = 4;
 let blockchain = [];
 let mempool = [];
-let myWallet = null;
+let myWallet = null;        // decrypted, in-memory only: {address, pubHex, privJwk}
+let walletEnc = null;       // persisted: {address, pubHex, enc:{salt,iv,ct}}
+let currentPin = null;      // in-memory only while unlocked
+let lockMode = 'unlock';    // 'unlock' | 'set' | 'change'
 let totalMined = 0;
 let priceHistory = [0.001];
 let isMining = false;
@@ -500,7 +554,7 @@ function saveState(){
   try{
     localStorage.setItem(STORE.chain, JSON.stringify(blockchain));
     localStorage.setItem(STORE.mempool, JSON.stringify(mempool));
-    localStorage.setItem(STORE.wallet, JSON.stringify(myWallet));
+    if (walletEnc) localStorage.setItem(STORE.wallet, JSON.stringify(walletEnc));
     localStorage.setItem(STORE.price, JSON.stringify(priceHistory));
   }catch(e){ console.warn('Save failed', e); }
 }
@@ -512,7 +566,7 @@ function loadState(){
     const p = localStorage.getItem(STORE.price);
     if (c) blockchain = JSON.parse(c);
     if (m) mempool = JSON.parse(m);
-    if (w) myWallet = JSON.parse(w);
+    if (w) walletEnc = JSON.parse(w);
     if (p) priceHistory = JSON.parse(p);
     return !!(c && w);
   }catch(e){ console.warn('Load failed', e); return false; }
@@ -665,6 +719,7 @@ async function sendTransaction(){
 
 // ─── rendering ────────────────────────────────────────────────────
 function refreshBalances(){
+  if (!myWallet) return;
   const bal = availableBalance(myWallet.address);
   const price = priceHistory[priceHistory.length-1] || 0.00842;
   document.getElementById('myBal').textContent = bal.toFixed(4);
@@ -852,10 +907,11 @@ async function validateChain(){
 async function newWallet(){
   if (!confirm('Generate a brand new wallet?\nYour current keypair and balance reference will be replaced.\nThe blockchain history stays, but the genesis reward belonged to the old wallet.')) return;
   myWallet = await generateWallet();
+  walletEnc = { address:myWallet.address, pubHex:myWallet.pubHex, enc: await encryptPriv(myWallet.privJwk, currentPin) };
   document.getElementById('walletPriv').style.filter = 'blur(4px)';
   saveState();
   refreshAll();
-  showToast('🔑 New ECDSA wallet generated!');
+  showToast('🔑 New ECDSA wallet generated (encrypted with your PIN)!');
 }
 
 function copyAddr(){
@@ -875,6 +931,154 @@ async function resetChain(){
   refreshAll();
   showToast('♻️ Blockchain reset. Fresh genesis created.');
 }
+
+// ─── BACKUP / RESTORE ─────────────────────────────────────────────
+function downloadJSON(filename, obj){
+  const blob = new Blob([JSON.stringify(obj,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+
+function backupWallet(){
+  if (!walletEnc || !walletEnc.enc){ showToast('No wallet to back up yet'); return; }
+  const backup = {
+    app:'elcoin', type:'wallet-backup', version:2,
+    exportedAt: new Date().toISOString(),
+    address: walletEnc.address,
+    pubHex:  walletEnc.pubHex,
+    enc:     walletEnc.enc,        // private key — ENCRYPTED with your PIN (safe to store)
+    chain:   blockchain,
+    mempool: mempool,
+    price:   priceHistory
+  };
+  const tag = walletEnc.address.slice(3,11).toLowerCase();
+  downloadJSON('elcoin-backup-'+tag+'.json', backup);
+  showToast('💾 Encrypted backup downloaded. Store it safely — it still needs your PIN.');
+}
+
+function triggerRestore(){ document.getElementById('restoreFile').click(); }
+
+function handleRestoreFile(input){
+  const file = input.files && input.files[0];
+  if (!file){ return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const b = JSON.parse(reader.result);
+      if (b.app !== 'elcoin' || !b.enc || !b.enc.ct || !b.enc.salt || !b.enc.iv || !b.address || !b.pubHex){
+        showToast('❌ Invalid ElCoin backup file'); input.value=''; return;
+      }
+      if ((walletEnc || blockchain.length) && !confirm('Restore this backup?\nIt will REPLACE the wallet and blockchain currently on this device.')){
+        input.value=''; return;
+      }
+      walletEnc   = { address:b.address, pubHex:b.pubHex, enc:b.enc };
+      blockchain  = Array.isArray(b.chain)   ? b.chain   : [];
+      mempool     = Array.isArray(b.mempool) ? b.mempool : [];
+      priceHistory= (Array.isArray(b.price) && b.price.length) ? b.price : [0.00842];
+      myWallet = null; currentPin = null;
+      saveState();
+      applyLockMode('unlock');
+      showToast('✓ Backup loaded. Enter your PIN to unlock it.');
+    }catch(e){ showToast('❌ Could not read that backup file'); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ─── PIN LOCK CONTROLLER ──────────────────────────────────────────
+function applyLockMode(mode){
+  lockMode = mode;
+  const pin2 = document.getElementById('lockPin2');
+  const title = document.getElementById('lockTitle');
+  const sub = document.getElementById('lockSub');
+  const btn = document.getElementById('lockBtn');
+  if (mode === 'unlock'){
+    title.textContent = 'UNLOCK WALLET'; sub.textContent = 'Enter your numeric PIN';
+    btn.textContent = 'UNLOCK'; pin2.style.display = 'none';
+  } else if (mode === 'change'){
+    title.textContent = 'CHANGE PIN'; sub.textContent = 'Choose a new numeric PIN (4–12 digits)';
+    btn.textContent = 'SAVE NEW PIN'; pin2.style.display = 'block';
+  } else { // set
+    title.textContent = 'CREATE PIN'; sub.textContent = 'Set a numeric PIN to protect your wallet (4–12 digits)';
+    btn.textContent = 'CREATE & START'; pin2.style.display = 'block';
+  }
+  document.getElementById('lockErr').textContent = '';
+  document.getElementById('lockPin').value = '';
+  pin2.value = '';
+  document.getElementById('lockScreen').style.display = 'flex';
+  setTimeout(()=>document.getElementById('lockPin').focus(), 50);
+}
+
+function lockErr(msg){ document.getElementById('lockErr').textContent = msg || ''; }
+function validPin(p){ return /^[0-9]{4,12}$/.test(p); }
+
+async function handleLockSubmit(){
+  const pin = document.getElementById('lockPin').value.trim();
+  const pin2 = document.getElementById('lockPin2').value.trim();
+  lockErr('');
+
+  if (lockMode === 'unlock'){
+    if (!pin){ lockErr('Enter your PIN'); return; }
+    try{
+      const privJwk = await decryptPriv(walletEnc.enc, pin);
+      myWallet = { address:walletEnc.address, pubHex:walletEnc.pubHex, privJwk };
+      currentPin = pin;
+      totalMined = blockchain.reduce((s,b)=>s+b.transactions.filter(t=>t.type==='coinbase').reduce((a,t)=>a+t.amount,0),0);
+      document.getElementById('lockScreen').style.display = 'none';
+      refreshAll();
+      showToast('🔓 Wallet unlocked.');
+    }catch(e){ lockErr('✗ Wrong PIN'); }
+    return;
+  }
+
+  // set OR change → both need confirm match + valid format
+  if (!validPin(pin)){ lockErr('PIN must be 4–12 digits'); return; }
+  if (pin !== pin2){ lockErr('PINs do not match'); return; }
+
+  if (lockMode === 'change'){
+    walletEnc.enc = await encryptPriv(myWallet.privJwk, pin);
+    currentPin = pin;
+    saveState();
+    document.getElementById('lockScreen').style.display = 'none';
+    showToast('🔐 PIN updated.');
+    return;
+  }
+
+  // set (first time) → create wallet + fresh genesis
+  myWallet = await generateWallet();
+  currentPin = pin;
+  walletEnc = { address:myWallet.address, pubHex:myWallet.pubHex, enc: await encryptPriv(myWallet.privJwk, pin) };
+  blockchain = []; mempool = [];
+  priceHistory = [0.00842];
+  let p = 0.00842;
+  for (let i=0;i<20;i++){ p*=(0.98+Math.random()*0.04); priceHistory.push(round6(p)); }
+  await createGenesis();
+  saveState();
+  document.getElementById('lockScreen').style.display = 'none';
+  refreshAll();
+  showToast('🌐 Wallet created & encrypted! Genesis block mined.');
+}
+
+function lockWallet(){
+  myWallet = null; currentPin = null;
+  applyLockMode('unlock');
+  showToast('🔒 Wallet locked.');
+}
+
+function changePin(){
+  if (!myWallet){ showToast('Unlock first'); return; }
+  applyLockMode('change');
+}
+
+// Enter-to-submit + digit-only filtering
+['lockPin','lockPin2'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^0-9]/g,''); });
+  el.addEventListener('keydown', e=>{ if (e.key === 'Enter') handleLockSubmit(); });
+});
 
 // ─── navigation ───────────────────────────────────────────────────
 function switchView(view){
@@ -899,6 +1103,7 @@ function showToast(msg){
 
 // ─── simulated price ticker ───────────────────────────────────────
 setInterval(()=>{
+  if (!myWallet) return;
   const last = priceHistory[priceHistory.length-1];
   const next = last * (0.997 + Math.random()*0.006);
   priceHistory.push(round6(next));
@@ -912,25 +1117,18 @@ setInterval(()=>{
 // ─── init ─────────────────────────────────────────────────────────
 (async ()=>{
   if (!(window.crypto && window.crypto.subtle)){
-    showToast('❌ Web Crypto unavailable. Open this page over HTTPS (GitHub Pages works).');
+    document.getElementById('lockTitle').textContent = 'UNSUPPORTED';
+    document.getElementById('lockSub').textContent = 'Open this page over HTTPS (GitHub Pages works).';
+    document.getElementById('lockPin').style.display = 'none';
+    document.getElementById('lockBtn').style.display = 'none';
     return;
   }
-  const had = loadState();
-  if (!had || !myWallet || !myWallet.privJwk){
-    // fresh start
-    myWallet = await generateWallet();
-    blockchain = []; mempool = [];
-    priceHistory = [0.00842];
-    let p = 0.00842;
-    for (let i=0;i<20;i++){ p*=(0.98+Math.random()*0.04); priceHistory.push(round6(p)); }
-    await createGenesis();
-    saveState();
-    showToast('🌐 ElCoin initialized! Genesis block created.');
-  }else{
-    totalMined = blockchain.reduce((s,b)=>s+b.transactions.filter(t=>t.type==='coinbase').reduce((a,t)=>a+t.amount,0),0);
-    showToast('🔁 Wallet & chain restored from local storage.');
+  loadState(); // loads chain / mempool / price / walletEnc (private key stays encrypted)
+  if (walletEnc && walletEnc.enc){
+    applyLockMode('unlock');   // returning user → ask for PIN to decrypt
+  } else {
+    applyLockMode('set');      // first time → create a PIN
   }
-  refreshAll();
 })();
 
 window.addEventListener('resize', renderPriceChart);
