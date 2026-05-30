@@ -25,6 +25,16 @@ Even though it's a simulation, the cryptography is genuine:
 - **Tamper detection** — the integrity check recomputes every block hash, verifies the links, the PoW, and all signatures.
 - **XSS-hardened** — recipient addresses are format-validated and all user content is HTML-escaped before rendering.
 - **Persistence** — wallet and chain survive page reloads.
+- **PIN lock** — your private key is encrypted at rest with a numeric PIN (PBKDF2 → AES-GCM). Nothing is stored in plain text and the PIN never leaves your device.
+- **Encrypted backup / restore** — export a `.json` backup (private key stays PIN-encrypted, chain included) and restore it on another device, then unlock with your PIN.
+
+## Moving to a new phone
+
+1. On the old device: **BACKUP WALLET** → saves `elcoin-backup-xxxx.json`. Keep this file safe.
+2. On the new device: open the page → on the lock screen tap **Restore from backup file** (or **RESTORE WALLET** in the sidebar) → pick the file.
+3. Enter your PIN to unlock. Your address, balance and history come back.
+
+> The backup file is safe to store because the private key inside is encrypted with your PIN — but it is still only as strong as your PIN, so choose a non-obvious one.
 
 ## How to use
 
@@ -34,7 +44,7 @@ Even though it's a simulation, the cryptography is genuine:
 4. Mine again to confirm pending transactions into a block.
 5. **RESET BLOCKCHAIN** wipes everything and starts a fresh genesis.
 
-> ⚠️ Your private key is stored in plain text in your browser's `localStorage`. Fine for a demo; never reuse this key anywhere real.
+> ⚠️ Your private key is encrypted with your PIN before being stored. If you forget your PIN there is no recovery — keep a backup file and remember your PIN.
 
 ## If you genuinely want real on-chain transactions
 
